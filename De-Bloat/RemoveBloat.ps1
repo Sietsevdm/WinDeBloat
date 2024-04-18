@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 .Removes bloat from a fresh Windows build
 .DESCRIPTION
@@ -85,6 +85,7 @@ C:\ProgramData\Debloat\Debloat.log
   Change 10/04/2024 - Office uninstall string fix
   Change 11/04/2024 - Added Office support for multi-language
   Change 17/04/2024 - HP Apps update
+  Change 18/04/2024 - Keep Windows Copilot
 N/A
 #>
 
@@ -825,6 +826,7 @@ If (!(Test-Path $registryPath)) {
 }
 Set-ItemProperty $registryPath "ChatIcon" -Value 2
 write-host "Removed Teams Chat"
+
 ############################################################################################################
 #                                           Windows Backup App                                             #
 #                                                                                                          #
@@ -842,104 +844,6 @@ DISM /Online /Add-Capability /CapabilityName:Windows.Client.ShellComponents~~~~0
 write-host "Components Added"
 }
 write-host "Removed"
-}
-
-############################################################################################################
-#                                           Windows CoPilot                                                #
-#                                                                                                          #
-############################################################################################################
-$version = Get-CimInstance Win32_OperatingSystem | Select-Object -ExpandProperty Caption
-if ($version -like "*Windows 11*") {
-    write-host "Removing Windows Copilot"
-# Define the registry key and value
-$registryPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot"
-$propertyName = "TurnOffWindowsCopilot"
-$propertyValue = 1
-
-# Check if the registry key exists
-if (!(Test-Path $registryPath)) {
-    # If the registry key doesn't exist, create it
-    New-Item -Path $registryPath -Force | Out-Null
-}
-
-# Get the property value
-$currentValue = Get-ItemProperty -Path $registryPath -Name $propertyName -ErrorAction SilentlyContinue
-
-# Check if the property exists and if its value is different from the desired value
-if ($null -eq $currentValue -or $currentValue.$propertyName -ne $propertyValue) {
-    # If the property doesn't exist or its value is different, set the property value
-    Set-ItemProperty -Path $registryPath -Name $propertyName -Value $propertyValue
-}
-
-
-##Grab the default user as well
-$registryPath = "HKEY_USERS\.DEFAULT\Software\Policies\Microsoft\Windows\WindowsCopilot"
-$propertyName = "TurnOffWindowsCopilot"
-$propertyValue = 1
-
-# Check if the registry key exists
-if (!(Test-Path $registryPath)) {
-    # If the registry key doesn't exist, create it
-    New-Item -Path $registryPath -Force | Out-Null
-}
-
-# Get the property value
-$currentValue = Get-ItemProperty -Path $registryPath -Name $propertyName -ErrorAction SilentlyContinue
-
-# Check if the property exists and if its value is different from the desired value
-if ($null -eq $currentValue -or $currentValue.$propertyName -ne $propertyValue) {
-    # If the property doesn't exist or its value is different, set the property value
-    Set-ItemProperty -Path $registryPath -Name $propertyName -Value $propertyValue
-}
-
-
-##Load the default hive from c:\users\Default\NTUSER.dat
-reg load HKU\temphive "c:\users\default\ntuser.dat"
-$registryPath = "registry::hku\temphive\Software\Policies\Microsoft\Windows\WindowsCopilot"
-$propertyName = "TurnOffWindowsCopilot"
-$propertyValue = 1
-
-# Check if the registry key exists
-if (!(Test-Path $registryPath)) {
-    # If the registry key doesn't exist, create it
-    [Microsoft.Win32.RegistryKey]$HKUCoPilot = [Microsoft.Win32.Registry]::Users.CreateSubKey("temphive\Software\Policies\Microsoft\Windows\WindowsCopilot", [Microsoft.Win32.RegistryKeyPermissionCheck]::ReadWriteSubTree)
-    $HKUCoPilot.SetValue("TurnOffWindowsCopilot", 0x1, [Microsoft.Win32.RegistryValueKind]::DWord)
-}
-
-        
-
-
-
-    $HKUCoPilot.Flush()
-    $HKUCoPilot.Close()
-[gc]::Collect()
-[gc]::WaitForPendingFinalizers()
-reg unload HKU\temphive
-
-
-write-host "Removed"
-
-
-foreach ($sid in $UserSIDs) {
-    $registryPath = "Registry::HKU\$sid\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot"
-    $propertyName = "TurnOffWindowsCopilot"
-    $propertyValue = 1
-    
-    # Check if the registry key exists
-    if (!(Test-Path $registryPath)) {
-        # If the registry key doesn't exist, create it
-        New-Item -Path $registryPath -Force | Out-Null
-    }
-    
-    # Get the property value
-    $currentValue = Get-ItemProperty -Path $registryPath -Name $propertyName -ErrorAction SilentlyContinue
-    
-    # Check if the property exists and if its value is different from the desired value
-    if ($null -eq $currentValue -or $currentValue.$propertyName -ne $propertyValue) {
-        # If the property doesn't exist or its value is different, set the property value
-        Set-ItemProperty -Path $registryPath -Name $propertyName -Value $propertyValue
-    }
-}
 }
 
 ############################################################################################################
@@ -1225,7 +1129,7 @@ $UninstallPrograms = @(
     "AD2F1837.HPPowerManager"
     "AD2F1837.HPPrivacySettings"
     "AD2F1837.HPQuickDrop"
-    "AD2F1837.HPSupportAssistant"
+    #"AD2F1837.HPSupportAssistant"
     "AD2F1837.HPSystemInformation"
     "AD2F1837.myHP"
     "RealtekSemiconductorCorp.HPAudioControl",
